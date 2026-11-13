@@ -1,0 +1,107 @@
+:root {
+  --charcoal: #1c1c1e;
+}
+
+.app {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --page-pad-x: clamp(12px, 4vw, 24px);
+  --page-pad-y: clamp(12px, 2.5vh, 24px);
+  --title-size: clamp(1.75rem, 7vw, 2.5rem);
+  --title-gap: clamp(10px, 2.5vh, 24px);
+  --grid-gap: clamp(8px, 2vmin, 14px);
+  --viewport-height: 100vh;
+  --available-height: calc(
+    var(--viewport-height) - var(--safe-top) - var(--safe-bottom) -
+      2 * var(--page-pad-y) - 1.1 * var(--title-size) - var(--title-gap) -
+      3 * var(--grid-gap)
+  );
+  --button-size: min(
+    calc((100vw - 2 * var(--page-pad-x) - var(--grid-gap)) / 2),
+    calc(var(--available-height) / 4)
+  );
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--title-gap);
+  width: 100%;
+  height: var(--viewport-height);
+  padding: calc(var(--safe-top) + var(--page-pad-y)) var(--page-pad-x)
+    calc(var(--safe-bottom) + var(--page-pad-y));
+  overflow: hidden;
+  background-color: var(--charcoal);
+  text-align: center;
+}
+
+@supports (height: 100dvh) {
+  .app {
+    --viewport-height: 100dvh;
+  }
+}
+
+.title {
+  flex: none;
+  margin: 0;
+  color: #ffffff;
+  font-size: var(--title-size);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, var(--button-size));
+  grid-auto-rows: var(--button-size);
+  gap: var(--grid-gap);
+  container-type: inline-size;
+}
+
+.color-button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: clamp(14px, 13cqw, 28px);
+  font-family: inherit;
+  font-size: clamp(0.8rem, 4.8vmin, 1.7rem);
+  font-size: clamp(0.7rem, 12cqw, 1.7rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.color-button[data-color="black"] {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.color-button.is-active {
+  font-size: clamp(0.65rem, 10.5cqw, 1.5rem);
+  transform: scale(0.96);
+  filter: brightness(1.08);
+}
+
+.color-button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .color-button {
+    transition: none;
+  }
+}
