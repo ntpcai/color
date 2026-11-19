@@ -12,6 +12,26 @@ const COLORS = [
   { name: 'purple', value: '#7b1fa2' },
 ];
 
+const SPEECH_DELAY_MS = 120;
+const RESET_TIMEOUT_MS = 5000;
+
+function canSpeak() {
+  return (
+    typeof window !== 'undefined' &&
+    'speechSynthesis' in window &&
+    typeof window.SpeechSynthesisUtterance === 'function'
+  );
+}
+
+function pickVoice(voices) {
+  return (
+    voices.find((voice) => voice.lang === 'en-US') ||
+    voices.find((voice) => voice.lang.toLowerCase().startsWith('en')) ||
+    voices[0] ||
+    null
+  );
+}
+
 function relativeLuminance(hex) {
   const channels = [1, 3, 5].map((start) => {
     const value = parseInt(hex.slice(start, start + 2), 16) / 255;
@@ -32,21 +52,56 @@ function textColorFor(background) {
 function App() {
   const [activeColor, setActiveColor] = useState(null);
   const resetTimer = useRef(null);
+  const speakTimer = useRef(null);
+  const utteranceRef = useRef(null);
 
   useEffect(() => {
+    if (!canSpeak()) {
+      return undefined;
+    }
+
+    const synth = window.speechSynthesis;
+
+    const loadVoices = () => {
+      synth.getVoices();
+    };
+
+    loadVoices();
+    if (typeof synth.addEventListener === 'function') {
+      synth.addEventListener('voiceschanged', loadVoices);
+    }
+
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      if (typeof synth.removeEventListener === 'function') {
+        synth.removeEventListener('voiceschanged', loadVoices);
+      }
+      if (speakTimer.current) {
+        clearTimeout(speakTimer.current);
       }
       if (resetTimer.current) {
         clearTimeout(resetTimer.current);
       }
+      if (utteranceRef.current) {
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
+      }
+      synth.cancel();
     };
   }, []);
 
   const handlePress = (color) => {
-    if ('speechSynthesis' in window) {
+    if (canSpeak()) {
       window.speechSynthesis.cancel();
+    }
+
+    if (speakTimer.current) {
+      clearTimeout(speakTimer.current);
+      speakTimer.current = null;
+    }
+    if (utteranceRef.current) {
+      utteranceRef.current.onend = null;
+      utteranceRef.current.onerror = null;
+      utteranceRef.current = null;
     }
     if (resetTimer.current) {
       clearTimeout(resetTimer.current);
@@ -63,24 +118,32 @@ function App() {
       setActiveColor((current) => (current === color.name ? null : current));
     };
 
-    const canSpeak =
-      'speechSynthesis' in window &&
-      typeof window.SpeechSynthesisUtterance === 'function';
-
-    if (!canSpeak) {
+    if (!canSpeak()) {
       resetTimer.current = setTimeout(reset, 900);
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(color.name);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.85;
-    utterance.pitch = 1;
-    utterance.onend = reset;
-    utterance.onerror = reset;
-    resetTimer.current = setTimeout(reset, 4000);
+    const synth = window.speechSynthesis;
+    resetTimer.current = setTimeout(reset, RESET_TIMEOUT_MS);
 
-    window.speechSynthesis.speak(utterance);
+    speakTimer.current = setTimeout(() => {
+      speakTimer.current = null;
+
+      const utterance = new window.SpeechSynthesisUtterance(color.name);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.85;
+      utterance.pitch = 1;
+      utterance.onend = reset;
+      utterance.onerror = reset;
+
+      const voice = pickVoice(synth.getVoices());
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      utteranceRef.current = utterance;
+      synth.speak(utterance);
+    }, SPEECH_DELAY_MS);
   };
 
   return (
