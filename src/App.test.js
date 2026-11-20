@@ -10,11 +10,17 @@ const COLOR_NAMES = [
   'yellow',
   'orange',
   'purple',
+  'brown',
+  'pink',
 ];
 
 let voices;
 let utterances;
+let audioElements;
 let speechSynthesisMock;
+
+const languageButton = () =>
+  screen.getByRole('button', { name: /switch language/i });
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -22,8 +28,10 @@ beforeEach(() => {
   voices = [
     { name: 'French', lang: 'fr-FR' },
     { name: 'English', lang: 'en-US' },
+    { name: 'Japanese', lang: 'ja-JP' },
   ];
   utterances = [];
+  audioElements = [];
   speechSynthesisMock = {
     getVoices: jest.fn(() => voices),
     cancel: jest.fn(),
@@ -41,6 +49,14 @@ beforeEach(() => {
       this.text = text;
     }
   };
+  window.Audio = class Audio {
+    constructor(src) {
+      this.src = src;
+      this.play = jest.fn(() => Promise.resolve());
+      this.pause = jest.fn();
+      audioElements.push(this);
+    }
+  };
 });
 
 afterEach(() => {
@@ -48,6 +64,7 @@ afterEach(() => {
   jest.useRealTimers();
   delete window.speechSynthesis;
   delete window.SpeechSynthesisUtterance;
+  delete window.Audio;
 });
 
 test('renders the Colors title and every color button', () => {
@@ -110,4 +127,68 @@ test('falls back to a timed reset when speech synthesis is unavailable', () => {
   });
 
   expect(button).toHaveTextContent('red');
+});
+
+test('switches to Japanese, shows kanji, and speaks the kana', () => {
+  render(<App />);
+
+  fireEvent.click(languageButton());
+
+  expect(screen.getByRole('heading', { name: /色/ })).toBeInTheDocument();
+
+  const button = screen.getByRole('button', { name: '白' });
+  expect(button).toHaveTextContent('白');
+
+  fireEvent.click(button);
+  expect(button).toHaveTextContent('しろ');
+
+  act(() => {
+    jest.advanceTimersByTime(120);
+  });
+
+  expect(speechSynthesisMock.speak).toHaveBeenCalledTimes(1);
+  expect(utterances[0].text).toBe('しろ');
+  expect(utterances[0].lang).toBe('ja-JP');
+  expect(utterances[0].voice).toBe(voices[2]);
+
+  act(() => {
+    utterances[0].onend();
+  });
+
+  expect(button).toHaveTextContent('白');
+});
+
+test('switches to Taigi and plays the matching audio clip', () => {
+  render(<App />);
+
+  fireEvent.click(languageButton());
+  fireEvent.click(languageButton());
+
+  expect(screen.getByRole('heading', { name: /顏色/ })).toBeInTheDocument();
+
+  const button = screen.getByRole('button', { name: '咖啡色' });
+  fireEvent.click(button);
+
+  expect(button).toHaveTextContent('ka-pi-sik');
+  expect(audioElements).toHaveLength(1);
+  expect(audioElements[0].src).toBe('/audio/brown_咖啡色_ka-pi-sik.mp3');
+  expect(audioElements[0].play).toHaveBeenCalled();
+  expect(speechSynthesisMock.speak).not.toHaveBeenCalled();
+
+  act(() => {
+    audioElements[0].onended();
+  });
+
+  expect(button).toHaveTextContent('咖啡色');
+});
+
+test('cycles back to English after Taigi', () => {
+  render(<App />);
+
+  fireEvent.click(languageButton());
+  fireEvent.click(languageButton());
+  fireEvent.click(languageButton());
+
+  expect(screen.getByRole('heading', { name: /colors/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'white' })).toBeInTheDocument();
 });
