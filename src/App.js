@@ -4,9 +4,9 @@ import './App.css';
 const LANGUAGES = ['en', 'ja', 'taigi'];
 
 const TITLES = {
-  en: 'Colors',
-  ja: '色',
-  taigi: '顏色',
+  en: '英文: Colors',
+  ja: '日文: 色',
+  taigi: '台語: 顏色',
 };
 
 const COLORS = [
